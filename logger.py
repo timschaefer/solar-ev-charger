@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def setup_logger() -> logging.Logger:
-    log_dir = Path("../logs")
+    log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
 
     log_filename = log_dir / f"{datetime.now().strftime('%Y-%m-%d')}.log"

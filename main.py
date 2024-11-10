@@ -8,7 +8,7 @@ from viessmann import Viessmann
 
 
 def load_config() -> Config:
-    with open("../config.json", "r") as file:
+    with open("config.json", "r") as file:
         data = json.load(file)
 
     iam = IAMConfig(**data["viessmann"]["iam"])
