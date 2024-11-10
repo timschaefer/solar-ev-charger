@@ -1,10 +1,13 @@
 import json
+import os
 from logging import Logger
 from typing import Optional
 from custom.config import Config, ViessmannConfig, IoTConfig, IAMConfig
 from custom.iot import PhotovoltaicData
 from logger import setup_logger
 from viessmann import Viessmann
+
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def load_config() -> Config:
