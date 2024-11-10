@@ -347,8 +347,10 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.penv
 env/
 venv/
+penv/
 ENV/
 env.bak/
 venv.bak/
@@ -435,3 +437,4 @@ fabric.properties
 
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
+/script/token.json
