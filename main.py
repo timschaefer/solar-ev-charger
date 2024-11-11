@@ -1,17 +1,23 @@
 import json
 import os
 from logging import Logger
-from typing import Optional
+from typing import Optional, Any, Union
 from custom.config import Config, ViessmannConfig, IoTConfig, IAMConfig
 from custom.iot import PhotovoltaicData
 from logger import setup_logger
 from viessmann import Viessmann
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+config_path = "config.json"
 
 
-def load_config() -> Config:
-    with open("config.json", "r") as file:
+def load_config() -> Optional[Config]:
+    if not os.path.exists(config_path):
+        print(
+            "config.json does not exist. Please copy config.template.json and adjust it accordingly."
+        )
+        return None
+    with open(config_path, "r") as file:
         data = json.load(file)
 
     iam = IAMConfig(**data["viessmann"]["iam"])
@@ -47,7 +53,7 @@ def main():
     config = load_config()
     logger = setup_logger()
 
-    if not config.enabled:
+    if config is None or not config.enabled:
         logger.info("Script disabled by configuration, exiting.")
         return 0
 
