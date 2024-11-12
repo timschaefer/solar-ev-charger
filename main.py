@@ -1,7 +1,7 @@
 import json
 import os
 from logging import Logger
-from typing import Optional, Any, Union
+from typing import Optional
 from custom.config import Config, ViessmannConfig, IoTConfig, IAMConfig
 from custom.iot import PhotovoltaicData
 from logger import setup_logger
