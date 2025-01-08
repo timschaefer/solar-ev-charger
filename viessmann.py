@@ -154,9 +154,9 @@ class Viessmann:
                 "ess.stateOfCharge",
             ]
         }
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
         try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
             return IoTFeatureResponse.model_validate(response.json())
         except requests.exceptions.HTTPError as e:
             self.logger.error(f"Failed to fetch pv data from IoT API: {e}")

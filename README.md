@@ -20,7 +20,7 @@ Copy `config.template.json` to `config.json` and insert your credentials etc.
 
 ### Launch webservice:
 ```
-PYTHONPATH=/path/to/solar-ev-charger /path/to/solar-ev-charger/penv/bin/uvicorn webservice:app --host 0.0.0.0 --port 8000 --app-dir /path/to/solar-ev-charger
+/path/to/solar-ev-charger/penv/bin/uvicorn webservice:app --host 0.0.0.0 --port 8000 --app-dir /path/to/solar-ev-charger
 ```
 
 ### Create systemd service for webservice:
