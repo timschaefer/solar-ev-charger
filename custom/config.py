@@ -25,6 +25,12 @@ class ViessmannConfig:
 
 
 @dataclass
+class ChargerConfig:
+    base_url: str
+
+
+@dataclass
 class Config:
     enabled: bool
     viessmann: ViessmannConfig
+    charger: ChargerConfig

@@ -2,13 +2,27 @@ import json
 import os
 from logging import Logger
 from typing import Optional
-from custom.config import Config, ViessmannConfig, IoTConfig, IAMConfig
+from custom.config import Config, ViessmannConfig, IoTConfig, IAMConfig, ChargerConfig
 from custom.iot import PhotovoltaicData
 from logger import setup_logger
 from viessmann import Viessmann
+from charger import Charger
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 config_path = "config.json"
+
+possible_charger_settings = [
+    {"power": 11000, "amp": 16, "psm": 2},
+    {"power": 9700, "amp": 14, "psm": 2},
+    {"power": 8300, "amp": 12, "psm": 2},
+    {"power": 6900, "amp": 10, "psm": 2},
+    {"power": 4100, "amp": 6, "psm": 2},
+    {"power": 3700, "amp": 16, "psm": 1},
+    {"power": 3200, "amp": 14, "psm": 1},
+    {"power": 2800, "amp": 12, "psm": 1},
+    {"power": 2300, "amp": 10, "psm": 1},
+    {"power": 1400, "amp": 6, "psm": 1},
+]
 
 
 def load_config() -> Optional[Config]:
@@ -24,13 +38,17 @@ def load_config() -> Optional[Config]:
     iot = IoTConfig(**data["viessmann"]["iot"])
     viessmann_config = ViessmannConfig(iam=iam, iot=iot)
 
-    config = Config(enabled=data.get("enabled", False), viessmann=viessmann_config)
+    charger_config = ChargerConfig(**data["charger"])
+
+    config = Config(
+        enabled=data.get("enabled", False),
+        viessmann=viessmann_config,
+        charger=charger_config,
+    )
     return config
 
 
-def get_photovoltaic_data(
-    viessmann: Viessmann, logger: Logger
-) -> Optional[PhotovoltaicData]:
+def get_photovoltaic_data(viessmann: Viessmann, logger: Logger) -> PhotovoltaicData:
     pv_data = viessmann.get_photovoltaic_data()
     battery_label = (
         "Batterieentladung" if pv_data.battery_power > 0 else "Batterieaufladung"
@@ -38,35 +56,86 @@ def get_photovoltaic_data(
     grid_label = "Netzbezug" if pv_data.grid_exchange > 0 else "Einspeisung"
     logger.info(
         f"Photovoltaic data: "
-        f"Solarleistung: {pv_data.solar_power:.2f} W, "
-        f"{battery_label}: {pv_data.battery_power:.2f} W, "
-        f"{grid_label}: {pv_data.grid_exchange:.2f} W, "
-        f"Haushalt: {pv_data.household:.2f} W"
+        f"Solarleistung: {to_kilo_watt(pv_data.solar_power)}, "
+        f"{battery_label}: {to_kilo_watt(pv_data.battery_power)}, "
+        f"{grid_label}: {to_kilo_watt(pv_data.grid_exchange)}, "
+        f"Haushalt: {to_kilo_watt(pv_data.household)}"
     )
-    if pv_data.solar_power == 0:
-        logger.info(f"No solar power available, exiting.")
-        return None
     return pv_data
+
+
+def to_kilo_watt(value: float):
+    if value < 1000:
+        return f"{value:.2f} W"
+    else:
+        return f"{(value / 1000):.2f} kW"
 
 
 def main():
     config = load_config()
     logger = setup_logger()
 
+    logger.info(
+        "================================== Starting up =================================="
+    )
+
     if config is None or not config.enabled:
         logger.info("Script disabled by configuration, exiting.")
         return 0
 
-    logger.info("Starting up...")
-
     viessmann = Viessmann(config.viessmann, logger)
+    charger = Charger(config.charger, logger)
 
     try:
-        # fetch wallbox data, then pv data (only if wallbox is able to charge)
+        # check if wallbox is ready to charge and there is a need to adjust settings based on pv data
+        charger_data = charger.check_for_readiness()
+        if not charger_data:
+            return 0
+        frc, energy, frm = (
+            charger_data.get("frc"),
+            charger_data.get("nrg")[11],
+            charger_data.get("frm"),
+        )
+
+        logger.info(
+            f"Charger is currently {'not charging' if energy == 0 else f'charging with {to_kilo_watt(energy)}'}"
+        )
+
         pv_data = get_photovoltaic_data(viessmann, logger)
 
-        # effective_household = household - wallbox
-        # available for wallbox: solar_power - effective_household + min(battery_power, 0)
+        # we have solar power and can enable/adjust wallbox
+        effective_household = pv_data.household - energy
+        if energy > 0:
+            logger.info(
+                f"Calculated: Haushalt: {to_kilo_watt(effective_household)}, Wallbox: {to_kilo_watt(energy)}"
+            )
+        # calculate available power. we need to subtract the battery power if it is negative (= battery is charging) and if frm is set to 1.
+        # frm = 0 means vehicle should be prioritized over battery power.
+        battery = min(pv_data.battery_power, 0) if frm == 1 else 0
+        available_power = pv_data.solar_power - effective_household + battery
+        if available_power <= 0:
+            logger.info("Disabling charger as there is no solar power available")
+            charger.disable(charger_data)
+        else:
+            logger.info(
+                f"Available solar power to use: {to_kilo_watt(available_power)}"
+            )
+            target_settings = next(
+                (
+                    {k: v for k, v in p.items() if k in {"amp", "psm"}}
+                    for p in possible_charger_settings
+                    if p["power"] <= available_power
+                ),
+                None,
+            )
+
+            if target_settings:
+                logger.info(f"Setting: {target_settings}")
+                charger.set_value(charger_data, frc=0, **target_settings)
+            else:
+                logger.info("Not enough solar power, disabling charger")
+                charger.disable(charger_data)
+
     except Exception as e:
         logger.error(f"Unknown error occurred: {e}")
 
