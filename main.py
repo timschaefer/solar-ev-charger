@@ -6,6 +6,7 @@ from custom.config import Config, ViessmannConfig, IoTConfig, IAMConfig, Charger
 from custom.iot import PhotovoltaicData
 from logger import setup_logger
 from viessmann import Viessmann
+from datetime import datetime
 from charger import Charger
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -109,10 +110,20 @@ def main():
             logger.info(
                 f"Calculated: Haushalt: {to_kilo_watt(effective_household)}, Wallbox: {to_kilo_watt(energy)}"
             )
-        # calculate available power. we need to subtract the battery power if it is negative (= battery is charging) and if frm is set to 1.
-        # frm = 0 means vehicle should be prioritized over battery power.
-        battery = min(pv_data.battery_power, 0) if frm == 1 else 0
+        # calculate available power.
+        # depending on "frm" (Leistungspräferenz) we need to prioritize either pv battery or charger.
+        # frm = 2 means pv battery should be prioritized over charger.
+        # this will allow the pv battery to fill more quickly and is intended for summer.
+        battery = min(pv_data.battery_power, 0) if frm == 2 else 0
         available_power = pv_data.solar_power - effective_household + battery
+
+        # special logic to apply when frm = 0: from 12-15 pm, allow discharging of battery when it is almost full.
+        # this represents a more "aggressive" behavior which is intended for winter.
+        if frm == 0 and pv_data.state_of_charge > 90 and 12 <= datetime.now().hour < 15:
+            logger.info(
+                f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
+            )
+            available_power += 1800
         if available_power <= 0:
             logger.info("Disabling charger as there is no solar power available")
             charger.disable(charger_data)
