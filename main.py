@@ -102,7 +102,12 @@ def main():
             f"Charger is currently {'not charging' if energy == 0 else f'charging with {to_kilo_watt(energy)}'}"
         )
 
-        pv_data = get_photovoltaic_data(viessmann, logger)
+        try:
+            pv_data = get_photovoltaic_data(viessmann, logger)
+        except:
+            logger.error("Could not fetch pv data, disabling Wallbox for safety")
+            charger.disable(charger_data)
+            return 0
 
         # we have solar power and can enable/adjust wallbox
         effective_household = pv_data.household - energy
@@ -117,9 +122,9 @@ def main():
         battery = min(pv_data.battery_power, 0) if frm == 2 else 0
         available_power = pv_data.solar_power - effective_household + battery
 
-        # special logic to apply when frm = 0: from 12-15 pm, allow discharging of battery when it is almost full.
+        # special logic to apply when frm = 0: until 15 pm, allow discharging of battery when it is almost full.
         # this represents a more "aggressive" behavior which is intended for winter.
-        if frm == 0 and pv_data.state_of_charge > 90 and 12 <= datetime.now().hour < 15:
+        if frm == 0 and pv_data.state_of_charge > 90 and datetime.now().hour < 15:
             logger.info(
                 f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
             )
