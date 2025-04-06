@@ -13,9 +13,9 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 config_path = "config.json"
 
 possible_charger_settings = [
-    {"power": 11000, "amp": 16, "psm": 2},
-    {"power": 9700, "amp": 14, "psm": 2},
-    {"power": 8300, "amp": 12, "psm": 2},
+    # {"power": 11000, "amp": 16, "psm": 2},
+    # {"power": 9700, "amp": 14, "psm": 2},
+    # {"power": 8300, "amp": 12, "psm": 2},
     {"power": 6900, "amp": 10, "psm": 2},
     {"power": 4100, "amp": 6, "psm": 2},
     {"power": 3700, "amp": 16, "psm": 1},
