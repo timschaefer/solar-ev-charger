@@ -16,12 +16,19 @@ possible_charger_settings = [
     # {"power": 11000, "amp": 16, "psm": 2},
     # {"power": 9700, "amp": 14, "psm": 2},
     # {"power": 8300, "amp": 12, "psm": 2},
+    # 3 phase
+    {"power": 7500, "amp": 11, "psm": 2},
     {"power": 6900, "amp": 10, "psm": 2},
+    {"power": 6200, "amp": 9, "psm": 2},
+    {"power": 5500, "amp": 8, "psm": 2},
+    {"power": 4800, "amp": 7, "psm": 2},
     {"power": 4100, "amp": 6, "psm": 2},
+    # 1 phase
     {"power": 3700, "amp": 16, "psm": 1},
     {"power": 3200, "amp": 14, "psm": 1},
     {"power": 2800, "amp": 12, "psm": 1},
     {"power": 2300, "amp": 10, "psm": 1},
+    {"power": 1800, "amp": 8, "psm": 1},
     {"power": 1400, "amp": 6, "psm": 1},
 ]
 
@@ -128,7 +135,8 @@ def main():
             logger.info(
                 f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
             )
-            available_power += 1800
+            # limit the artificial increase to 8000, because the VX3 cannot deliver more than that
+            available_power = min(8000, available_power + 1500)
         if available_power <= 0:
             logger.info("Disabling charger as there is no solar power available")
             charger.disable(charger_data)
