@@ -99,10 +99,11 @@ def main():
         charger_data = charger.check_for_readiness()
         if not charger_data:
             return 0
-        frc, energy, frm = (
+        frc, energy, frm, spl3 = (
             charger_data.get("frc"),
             charger_data.get("nrg")[11],
             charger_data.get("frm"),
+            charger_data.get("spl3"),
         )
 
         logger.info(
@@ -144,11 +145,16 @@ def main():
             logger.info(
                 f"Available solar power to use: {to_kilo_watt(available_power)}"
             )
+            if spl3 > 0:
+                logger.info(
+                    f"Available power manually limited to: {to_kilo_watt(spl3)}"
+                )
             target_settings = next(
                 (
                     {k: v for k, v in p.items() if k in {"amp", "psm"}}
                     for p in possible_charger_settings
                     if p["power"] <= available_power
+                    and (spl3 == 0 or p["power"] <= spl3)
                 ),
                 None,
             )
