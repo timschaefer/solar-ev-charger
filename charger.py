@@ -29,7 +29,7 @@ class Charger:
     def get_status(self):
         self.logger.info("Fetching status from charger...")
         url = f"{self.config.base_url}/status"
-        params = {"filter": "amp,psm,car,frc,nrg,fup,frm,spl3"}
+        params = {"filter": "amp,psm,car,frc,nrg,fup,frm"}
 
         try:
             response = requests.get(url, params=params)

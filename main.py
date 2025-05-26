@@ -99,11 +99,10 @@ def main():
         charger_data = charger.check_for_readiness()
         if not charger_data:
             return 0
-        frc, energy, frm, spl3 = (
+        frc, energy, frm = (
             charger_data.get("frc"),
             charger_data.get("nrg")[11],
             charger_data.get("frm"),
-            charger_data.get("spl3"),
         )
 
         logger.info(
@@ -130,9 +129,8 @@ def main():
         battery = min(pv_data.battery_power, 0) if frm == 2 else 0
         available_power = pv_data.solar_power - effective_household + battery
 
-        # special logic to apply when frm = 0: until 15 pm, allow discharging of battery when it is almost full.
-        # this represents a more "aggressive" behavior which is intended for winter.
-        if frm == 0 and pv_data.state_of_charge > 90 and datetime.now().hour < 15:
+        # allow discharging of battery when it is almost full (only until 15 pm)
+        if pv_data.state_of_charge > 90 and datetime.now().hour < 15:
             logger.info(
                 f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
             )
@@ -145,16 +143,13 @@ def main():
             logger.info(
                 f"Available solar power to use: {to_kilo_watt(available_power)}"
             )
-            if spl3 > 0:
-                logger.info(
-                    f"Available power manually limited to: {to_kilo_watt(spl3)}"
-                )
+            if frm != 0:
+                logger.info(f"Available power limited to 1-phase only")
             target_settings = next(
                 (
                     {k: v for k, v in p.items() if k in {"amp", "psm"}}
                     for p in possible_charger_settings
-                    if p["power"] <= available_power
-                    and (spl3 == 0 or p["power"] <= spl3)
+                    if p["power"] <= available_power and (frm == 0 or p["psm"] == 1)
                 ),
                 None,
             )
