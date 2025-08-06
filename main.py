@@ -123,16 +123,19 @@ def main():
                 f"Calculated: Haushalt: {to_kilo_watt(effective_household)}, Wallbox: {to_kilo_watt(energy)}"
             )
         # calculate available power.
-        # depending on "frm" (Leistungspräferenz) we need to prioritize either pv battery or charger.
-        # frm = 2 means pv battery should be prioritized over charger.
-        # this will allow the pv battery to fill more quickly and is intended for summer.
-        battery = min(pv_data.battery_power, 0) if frm == 2 else 0
-        available_power = pv_data.solar_power - effective_household + battery
+        # ignore the battery power, most of the time there is enough difference between used and available power
+        available_power = pv_data.solar_power - effective_household
 
+        # in frm=0 mode, prevent continuously enabling/disabling charger. once it's charging, keep it charging until battery is below 50%.
+        prevent_disruption = frm == 0 and energy > 0 and pv_data.state_of_charge > 50
         # allow discharging of battery when it is almost full (only until 15 pm)
-        if pv_data.state_of_charge > 90 and datetime.now().hour < 15:
+        if (
+            pv_data.state_of_charge > 90 and datetime.now().hour < 15
+        ) or prevent_disruption:
             logger.info(
-                f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
+                f"Keep charging until battery SoC is below 50% (SoC = {pv_data.state_of_charge})"
+                if prevent_disruption
+                else f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
             )
             # limit the artificial increase to 7500, because the VX3 cannot deliver more than that
             available_power = min(7500, available_power + 1500)
@@ -143,13 +146,13 @@ def main():
             logger.info(
                 f"Available solar power to use: {to_kilo_watt(available_power)}"
             )
-            if frm != 0:
+            if frm != 2:
                 logger.info(f"Available power limited to 1-phase only")
             target_settings = next(
                 (
                     {k: v for k, v in p.items() if k in {"amp", "psm"}}
                     for p in possible_charger_settings
-                    if p["power"] <= available_power and (frm == 0 or p["psm"] == 1)
+                    if p["power"] <= available_power and (frm == 2 or p["psm"] == 1)
                 ),
                 None,
             )
