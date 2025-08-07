@@ -126,19 +126,17 @@ def main():
         # ignore the battery power, most of the time there is enough difference between used and available power
         available_power = pv_data.solar_power - effective_household
 
-        # in frm=0 mode, prevent continuously enabling/disabling charger. once it's charging, keep it charging until battery is below 50%.
-        prevent_disruption = frm == 0 and energy > 0 and pv_data.state_of_charge > 50
         # allow discharging of battery when it is almost full (only until 15 pm)
-        if (
-            pv_data.state_of_charge > 90 and datetime.now().hour < 15
-        ) or prevent_disruption:
+        if pv_data.state_of_charge > 90 and datetime.now().hour < 15:
             logger.info(
-                f"Keep charging until battery SoC is below 50% (SoC = {pv_data.state_of_charge})"
-                if prevent_disruption
-                else f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
+                f"Temporarily allowing discharge of battery due to SoC = {pv_data.state_of_charge}"
             )
             # limit the artificial increase to 7500, because the VX3 cannot deliver more than that
             available_power = min(7500, available_power + 1500)
+        if frm == 0 and energy > 0 and pv_data.state_of_charge > 50:
+            # in frm=0 mode, prevent continuously enabling/disabling charger. once it's charging, keep it charging until battery is below 50%.
+            f"Keep charging until battery SoC is below 50% (SoC = {pv_data.state_of_charge})"
+            available_power = max(available_power, 1500)
         if available_power <= 0:
             logger.info("Disabling charger as there is no solar power available")
             charger.disable(charger_data)
