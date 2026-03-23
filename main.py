@@ -99,11 +99,12 @@ def main():
         charger_data = charger.check_for_readiness()
         if not charger_data:
             return 0
-        frc, energy, frm, pgt = (
+        frc, energy, frm, pgt, psm = (
             charger_data.get("frc"),
             charger_data.get("nrg")[11],
             charger_data.get("frm"),
             charger_data.get("pgt"),
+            charger_data.get("psm"),
         )
 
         logger.info(
@@ -159,11 +160,13 @@ def main():
                 None,
             )
 
-            if target_settings:
+            if target_settings and target_settings["psm"] == psm:
                 logger.info(f"Setting: {target_settings}")
                 charger.set_value(charger_data, frc=0, **target_settings)
             else:
-                logger.info("Not enough solar power, disabling charger")
+                logger.info(
+                    f"Disabling charger: {'switch phase' if target_settings else f'not enough solar power'} "
+                )
                 charger.disable(charger_data)
 
     except Exception as e:
