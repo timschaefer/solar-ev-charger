@@ -17,5 +17,10 @@
   },
   "charger": {
     "base_url": "http://192.168.100.100/api"
+  },
+  "pushover": {
+    "base_url": "https://api.pushover.net/1",
+    "api_token": "xxx",
+    "user_key": "xxx"
   }
 }

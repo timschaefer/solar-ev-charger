@@ -2,12 +2,19 @@ import json
 import os
 from logging import Logger
 from typing import Optional
-from custom.config import Config, ViessmannConfig, IoTConfig, IAMConfig, ChargerConfig
+from custom.config import (
+    Config,
+    ViessmannConfig,
+    IoTConfig,
+    IAMConfig,
+    ChargerConfig,
+    PushoverConfig,
+)
 from custom.iot import PhotovoltaicData
 from logger import setup_logger
 from viessmann import Viessmann
-from datetime import datetime
 from charger import Charger
+from pushover import Pushover
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 config_path = "config.json"
@@ -45,13 +52,14 @@ def load_config() -> Optional[Config]:
     iam = IAMConfig(**data["viessmann"]["iam"])
     iot = IoTConfig(**data["viessmann"]["iot"])
     viessmann_config = ViessmannConfig(iam=iam, iot=iot)
-
     charger_config = ChargerConfig(**data["charger"])
+    pushover_config = PushoverConfig(**data["pushover"])
 
     config = Config(
         enabled=data.get("enabled", False),
         viessmann=viessmann_config,
         charger=charger_config,
+        pushover=pushover_config,
     )
     return config
 
@@ -93,6 +101,7 @@ def main():
 
     viessmann = Viessmann(config.viessmann, logger)
     charger = Charger(config.charger, logger)
+    pushover = Pushover(config.pushover, logger)
 
     try:
         # check if wallbox is ready to charge and there is a need to adjust settings based on pv data
@@ -113,9 +122,10 @@ def main():
 
         try:
             pv_data = get_photovoltaic_data(viessmann, logger)
-        except:
+        except Exception as e:
             logger.error("Could not fetch pv data, disabling Wallbox for safety")
             charger.disable(charger_data)
+            pushover.send_notification(f"Error fetching pv data: {e}")
             return 0
 
         # we have solar power and can enable/adjust wallbox
@@ -162,6 +172,7 @@ def main():
 
     except Exception as e:
         logger.error(f"Unknown error occurred: {e}")
+        pushover.send_notification(f"Unknown error occurred: {e}")
 
 
 if __name__ == "__main__":
