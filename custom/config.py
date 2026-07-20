@@ -30,7 +30,15 @@ class ChargerConfig:
 
 
 @dataclass
+class PushoverConfig:
+    base_url: str
+    api_token: str
+    user_key: str
+
+
+@dataclass
 class Config:
     enabled: bool
     viessmann: ViessmannConfig
     charger: ChargerConfig
+    pushover: PushoverConfig
